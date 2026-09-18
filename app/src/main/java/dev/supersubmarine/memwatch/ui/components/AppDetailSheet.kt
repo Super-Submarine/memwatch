@@ -59,12 +59,21 @@ fun AppDetailSheet(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = app.packageName + (app.versionName?.let { " · $it" } ?: ""),
+                        text = app.packageName,
                         style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    app.versionName?.let {
+                        Text(
+                            text = "Version $it",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
 

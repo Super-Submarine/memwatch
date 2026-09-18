@@ -51,7 +51,7 @@ fun AppRow(app: AppUsage, now: Long, onClick: () -> Unit, modifier: Modifier = M
                 overflow = TextOverflow.Ellipsis,
             )
             val secondary = buildString {
-                append("Opened ${formatRelativeTime(app.lastTimeUsedMillis, now)}")
+                if (app.lastTimeUsedMillis > 0) append("Opened ${formatRelativeTime(app.lastTimeUsedMillis, now)}") else append("Not opened recently")
                 if (app.totalForegroundMillis > 0) append(" · ${formatDuration(app.totalForegroundMillis)} on screen")
             }
             Text(
