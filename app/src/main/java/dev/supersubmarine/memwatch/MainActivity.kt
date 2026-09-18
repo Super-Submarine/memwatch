@@ -26,9 +26,11 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 viewModel.refresh()
+                var ticks = 0
                 while (true) {
                     delay(MEMORY_POLL_MILLIS)
                     viewModel.refreshMemory()
+                    if (++ticks % APPS_POLL_EVERY == 0) viewModel.refreshApps()
                 }
             }
         }
@@ -40,12 +42,12 @@ class MainActivity : ComponentActivity() {
                     state = state,
                     onRefresh = { viewModel.refresh(minVisibleMillis = 600) },
                     onSelect = viewModel::select,
-                    onSort = viewModel::setSort,
-                    onGrantUsageAccess = viewModel::openUsageAccessSettings,
+                    onSetupShizuku = viewModel::requestShizuku,
+                    onOpenShizukuGuide = viewModel::openShizukuGuide,
                     onOpenAppMemoryUsage = viewModel::openAppMemoryUsage,
-                    onForceStop = viewModel::openAppDetails,
-                    onTrim = viewModel::trimBackground,
-                    onDismissTrim = viewModel::dismissTrimResult,
+                    onForceStop = viewModel::forceStop,
+                    onOpenAppInfo = viewModel::openAppDetails,
+                    onClearBackground = viewModel::clearBackground,
                     onMessageShown = viewModel::consumeMessage,
                 )
             }
@@ -54,5 +56,6 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val MEMORY_POLL_MILLIS = 4_000L
+        const val APPS_POLL_EVERY = 3
     }
 }

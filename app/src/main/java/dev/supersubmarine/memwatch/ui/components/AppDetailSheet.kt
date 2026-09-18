@@ -11,7 +11,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -19,37 +22,43 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.supersubmarine.memwatch.data.AppUsage
+import dev.supersubmarine.memwatch.data.AppMemory
 import dev.supersubmarine.memwatch.ui.formatBytes
-import dev.supersubmarine.memwatch.ui.formatDuration
-import dev.supersubmarine.memwatch.ui.formatRelativeTime
 import dev.supersubmarine.memwatch.ui.theme.MemWatchTheme
 
+/**
+ * Everything about one app's RAM plus the two things you can do about it: force stop it right
+ * here (through Shizuku) or open Android's App info.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppDetailSheet(
-    app: AppUsage,
-    canTrim: Boolean,
-    isTrimming: Boolean,
+    app: AppMemory,
+    isStopping: Boolean,
     onDismiss: () -> Unit,
     onForceStop: () -> Unit,
-    onTrim: () -> Unit,
+    onOpenAppInfo: () -> Unit,
 ) {
     val semantic = MemWatchTheme.semantic
-    val now = System.currentTimeMillis()
+    var confirmStop by remember { mutableStateOf(false) }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Column(Modifier.padding(start = 24.dp, end = 24.dp, bottom = 32.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AppIcon(app.icon, app.label, size = 48.dp)
+                AppIcon(app.icon, size = 48.dp)
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
@@ -59,13 +68,15 @@ fun AppDetailSheet(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Text(
-                        text = app.packageName,
-                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    app.packageName?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                     app.versionName?.let {
                         Text(
                             text = "Version $it",
@@ -79,79 +90,103 @@ fun AppDetailSheet(
             }
 
             Spacer(Modifier.height(20.dp))
-            app.storage?.let { storage ->
-                Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text("Storage", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(Modifier.weight(1f))
-                            Text(formatBytes(storage.totalBytes), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
-                        }
-                        val total = storage.totalBytes.coerceAtLeast(1).toFloat()
-                        SegmentedBar(
-                            segments = listOf(
-                                BarSegment(storage.appBytes / total, semantic.ink),
-                                BarSegment(storage.dataBytes / total, MaterialTheme.colorScheme.primary),
-                                BarSegment(storage.cacheBytes / total, semantic.cache),
-                            ),
-                            track = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            modifier = Modifier.fillMaxWidth().height(10.dp),
-                        )
-                        LegendDot(semantic.ink, "App", formatBytes(storage.appBytes))
-                        LegendDot(MaterialTheme.colorScheme.primary, "User data", formatBytes(storage.dataBytes))
-                        LegendDot(semantic.cache, "Cache", formatBytes(storage.cacheBytes))
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-            }
             Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    DetailRow("Last opened", formatRelativeTime(app.lastTimeUsedMillis, now))
-                    DetailRow("On screen, last 24 h", if (app.totalForegroundMillis > 0) formatDuration(app.totalForegroundMillis) else "Not used")
-                    DetailRow(
-                        label = "Background service",
-                        value = if (app.lastBackgroundServiceMillis > 0) formatRelativeTime(app.lastBackgroundServiceMillis, now) else "None recorded",
-                        valueColor = if (app.ranInBackgroundRecently) semantic.warn else null,
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("RAM right now", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            text = formatBytes(app.pssBytes),
+                            style = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Monospace),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    Text(
+                        text = if (app.isReclaimable) {
+                            "${app.tier.label}. Android keeps it warm so it reopens fast and will drop it the moment something else needs the memory."
+                        } else {
+                            "${app.tier.label}. Android counts this against your free memory."
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Spacer(Modifier.height(2.dp))
+                    app.processes.sortedByDescending { it.pssBytes }.forEach { process ->
+                        DetailRow(
+                            label = process.name.removePrefix(app.packageName.orEmpty()).ifEmpty { "main" }.removePrefix(":"),
+                            value = formatBytes(process.pssBytes),
+                            mono = true,
+                        )
+                    }
                 }
             }
 
             Spacer(Modifier.height(16.dp))
             Text(
-                text = if (app.isSystemApp) {
-                    "This is part of the system. Force stopping it can break phone features until it restarts on its own."
-                } else {
-                    "Force stop ends every process and background service of this app until you open it again; Clear cache frees the cache above. Android only allows both from its own App info screen."
+                text = when {
+                    app.packageName == null -> "These processes belong to Android itself, not to an app, so there is nothing to stop."
+                    app.isSystemApp -> "This is part of the system. Force stopping it frees its RAM now, but Android usually restarts it and some features may hiccup until it does."
+                    else -> "Force stop ends every process of this app until you open it again — the same as the button in Android's App info."
                 },
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (app.isSystemApp) semantic.warn else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (app.isSystemApp && app.packageName != null) semantic.warn else MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Spacer(Modifier.height(16.dp))
-            Button(onClick = onForceStop, modifier = Modifier.fillMaxWidth()) {
-                Text("Open App info")
-                Spacer(Modifier.width(8.dp))
-                Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
-            }
-            if (canTrim && !app.isSystemApp) {
+            if (app.packageName != null) {
+                Button(
+                    onClick = { if (app.isSystemApp) confirmStop = true else onForceStop() },
+                    enabled = !isStopping,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    colors = if (app.isSystemApp) ButtonDefaults.buttonColors(containerColor = semantic.warn) else ButtonDefaults.buttonColors(),
+                ) {
+                    if (isStopping) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                        Spacer(Modifier.width(12.dp))
+                        Text("Stopping…")
+                    } else {
+                        Text("Force stop")
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
-                OutlinedButton(onClick = onTrim, enabled = !isTrimming, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (isTrimming) "Trimming…" else "Trim background process")
+                OutlinedButton(onClick = onOpenAppInfo, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                    Text("Open App info")
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
                 }
             }
         }
     }
+
+    if (confirmStop) {
+        AlertDialog(
+            onDismissRequest = { confirmStop = false },
+            title = { Text("Stop a system app?") },
+            text = { Text("${app.label} is part of Android. Stopping it frees ${formatBytes(app.pssBytes)} for a moment, but the system will most likely bring it straight back.") },
+            confirmButton = {
+                TextButton(onClick = { confirmStop = false; onForceStop() }) { Text("Force stop") }
+            },
+            dismissButton = { TextButton(onClick = { confirmStop = false }) { Text("Cancel") } },
+        )
+    }
 }
 
 @Composable
-private fun DetailRow(label: String, value: String, valueColor: androidx.compose.ui.graphics.Color? = null) {
+private fun DetailRow(label: String, value: String, mono: Boolean = false) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(text = label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.weight(1f))
+        Text(
+            text = label,
+            style = if (mono) MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace) else MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(12.dp))
         Text(
             text = value,
-            style = MaterialTheme.typography.labelLarge,
-            color = valueColor ?: MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelLarge.copy(fontFamily = FontFamily.Monospace),
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }

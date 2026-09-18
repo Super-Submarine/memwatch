@@ -14,7 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Sync
+import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -24,33 +25,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.supersubmarine.memwatch.data.AppUsage
+import dev.supersubmarine.memwatch.data.AppMemory
+import dev.supersubmarine.memwatch.data.OomTier
 import dev.supersubmarine.memwatch.ui.formatBytes
-import dev.supersubmarine.memwatch.ui.formatDuration
-import dev.supersubmarine.memwatch.ui.formatRelativeTime
 import dev.supersubmarine.memwatch.ui.theme.MemWatchTheme
 
 /**
- * One app in the ranked list: real icon, name, activity line, measured storage on the right and
- * a thin bar scaled against the largest app so relative size is visible at a glance.
+ * One app in the RAM ranking: icon, name, what state it's in, its live RAM on the right and a
+ * bar scaled against the biggest app so relative size reads at a glance. Reclaimable (cached)
+ * apps get a muted bar — they cost nothing to keep.
  */
 @Composable
 fun AppRow(
-    app: AppUsage,
-    now: Long,
+    app: AppMemory,
     largestBytes: Long,
     shape: Shape,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val semantic = MemWatchTheme.semantic
-    val fraction = if (largestBytes > 0) app.storageBytes.toFloat() / largestBytes else 0f
+    val fraction = if (largestBytes > 0) app.pssBytes.toFloat() / largestBytes else 0f
     Surface(modifier.fillMaxWidth().clip(shape).clickable(onClick = onClick), shape = shape, color = MaterialTheme.colorScheme.surfaceContainer) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            AppIcon(app.icon, app.label, size = 40.dp)
+            AppIcon(app.icon, size = 40.dp)
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -64,30 +65,23 @@ fun AppRow(
                     )
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        text = app.storage?.let { formatBytes(it.totalBytes) } ?: "—",
-                        style = MaterialTheme.typography.labelLarge,
+                        text = formatBytes(app.pssBytes),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = FontFamily.Monospace),
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.End,
                         maxLines = 1,
                     )
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = activityLine(app, now),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (app.ranInBackgroundRecently) {
-                        Spacer(Modifier.width(8.dp))
-                        IconLabel(icon = Icons.Rounded.Sync, text = "Background", tint = semantic.warn)
-                    }
-                }
+                Text(
+                    text = stateLine(app),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (app.tier == OomTier.SERVICE || app.tier == OomTier.PERSISTENT) semantic.warn else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 MemoryBar(
                     fraction = fraction,
-                    color = semantic.ink,
+                    color = if (app.isReclaimable) semantic.cache else semantic.ink,
                     track = semantic.trackSubtle,
                     modifier = Modifier.fillMaxWidth().padding(top = 2.dp).height(4.dp),
                 )
@@ -96,14 +90,14 @@ fun AppRow(
     }
 }
 
-private fun activityLine(app: AppUsage, now: Long): String = buildString {
-    if (app.lastTimeUsedMillis > 0) append("Opened ${formatRelativeTime(app.lastTimeUsedMillis, now)}") else append("Not opened recently")
-    if (app.totalForegroundMillis > 0) append(" · ${formatDuration(app.totalForegroundMillis)} on screen")
-    if (app.isSystemApp) append(" · System")
+private fun stateLine(app: AppMemory): String = buildString {
+    append(app.tier.label)
+    if (app.processCount > 1) append(" · ${app.processCount} processes")
+    if (app.isSystemApp && app.packageName != null && app.tier != OomTier.SYSTEM) append(" · System")
 }
 
 @Composable
-fun AppIcon(icon: ImageBitmap?, label: String, size: androidx.compose.ui.unit.Dp) {
+fun AppIcon(icon: ImageBitmap?, size: androidx.compose.ui.unit.Dp) {
     if (icon != null) {
         Image(bitmap = icon, contentDescription = null, modifier = Modifier.size(size))
     } else {
@@ -113,11 +107,7 @@ fun AppIcon(icon: ImageBitmap?, label: String, size: androidx.compose.ui.unit.Dp
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.small),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = label.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Icon(Icons.Rounded.Memory, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(size / 2))
         }
     }
 }

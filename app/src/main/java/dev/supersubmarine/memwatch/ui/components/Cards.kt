@@ -29,8 +29,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Close
-import dev.supersubmarine.memwatch.data.AppSort
-import dev.supersubmarine.memwatch.data.TrimResult
 import dev.supersubmarine.memwatch.ui.formatBytes
 import dev.supersubmarine.memwatch.ui.theme.MemWatchTheme
 
@@ -64,67 +62,12 @@ fun InfoCard(
 }
 
 @Composable
-fun TrimResultBanner(result: TrimResult, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
-    val semantic = MemWatchTheme.semantic
-    val freed = result.freedBytes > 0
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    ) {
-        Row(Modifier.padding(start = 20.dp, top = 16.dp, bottom = 16.dp, end = 8.dp), verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = if (freed) "Freed ${formatBytes(result.freedBytes)}" else "Nothing to free",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = if (freed) semantic.ok else MaterialTheme.colorScheme.onSurface,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = if (freed) {
-                        "${result.appsTrimmed} background ${if (result.appsTrimmed == 1) "app" else "apps"} trimmed. They restart the next time you open them."
-                    } else {
-                        "Those apps weren't holding memory in the background — Android had already cleaned up."
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            IconButton(onClick = onDismiss) {
-                Icon(Icons.Rounded.Close, contentDescription = "Dismiss", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
-
-@Composable
 fun SectionHeader(title: String, trailing: String?, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth().padding(top = 16.dp, start = 4.dp, end = 4.dp), verticalAlignment = Alignment.Bottom) {
         Text(text = title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.weight(1f))
         if (trailing != null) {
             Text(text = trailing, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-fun SortChips(selected: AppSort, onSelect: (AppSort) -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier.padding(start = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        AppSort.entries.forEach { sort ->
-            FilterChip(
-                selected = sort == selected,
-                onClick = { onSelect(sort) },
-                label = { Text(if (sort == AppSort.STORAGE) "Largest first" else "Recently used") },
-                shape = MaterialTheme.shapes.small,
-                border = null,
-                colors = FilterChipDefaults.filterChipColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    selectedContainerColor = MaterialTheme.colorScheme.onSurface,
-                    selectedLabelColor = MaterialTheme.colorScheme.surface,
-                ),
-            )
         }
     }
 }
