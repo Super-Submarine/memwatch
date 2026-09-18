@@ -11,10 +11,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,7 +22,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,17 +47,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
+import dev.supersubmarine.memwatch.data.AppSort
 import dev.supersubmarine.memwatch.ui.components.AppDetailSheet
 import dev.supersubmarine.memwatch.ui.components.AppRow
 import dev.supersubmarine.memwatch.ui.components.EmptyRows
-import dev.supersubmarine.memwatch.ui.components.ExplainerCard
 import dev.supersubmarine.memwatch.ui.components.InfoCard
-import dev.supersubmarine.memwatch.ui.components.MemoryHero
+import dev.supersubmarine.memwatch.ui.components.MemorySummaryCard
 import dev.supersubmarine.memwatch.ui.components.RowDivider
 import dev.supersubmarine.memwatch.ui.components.SectionHeader
-import dev.supersubmarine.memwatch.ui.components.StatTiles
+import dev.supersubmarine.memwatch.ui.components.SortChips
+import dev.supersubmarine.memwatch.ui.components.SuggestionCard
 import dev.supersubmarine.memwatch.ui.components.TrimResultBanner
-import dev.supersubmarine.memwatch.ui.components.UsageAccessCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,8 +65,9 @@ fun MemWatchScreen(
     state: UiState,
     onRefresh: () -> Unit,
     onSelect: (String?) -> Unit,
+    onSort: (AppSort) -> Unit,
     onGrantUsageAccess: () -> Unit,
-    onOpenDeveloperOptions: () -> Unit,
+    onOpenAppMemoryUsage: () -> Unit,
     onForceStop: (String) -> Unit,
     onTrim: (List<String>) -> Unit,
     onDismissTrim: () -> Unit,
@@ -118,62 +120,83 @@ fun MemWatchScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             val now = System.currentTimeMillis()
+            val apps = state.sortedApps
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                item(key = "hero") { MemoryHero(memory = state.memory, previous = state.previousMemory) }
-                item(key = "tiles") { StatTiles(memory = state.memory) }
-                item(key = "explainer") { ExplainerCard() }
+                item(key = "summary") { MemorySummaryCard(memory = state.memory, previous = state.previousMemory) }
+                item(key = "ram-per-app") {
+                    SuggestionCard(
+                        modifier = Modifier.padding(top = GAP),
+                        icon = Icons.Rounded.Memory,
+                        eyebrow = "RAM per app",
+                        title = "Memory used by apps",
+                        body = if (state.hasSystemMemoryScreen) {
+                            "Android measures each app's RAM itself and hides it from other apps. Its own ranking — averaged over the last 3 hours to 1 day — is one tap away."
+                        } else {
+                            "Android measures each app's RAM itself and hides it from other apps. The real numbers live in Developer options under Running services."
+                        },
+                        actionLabel = if (state.hasSystemMemoryScreen) "Open Android's RAM ranking" else "Open Developer options",
+                        onAction = onOpenAppMemoryUsage,
+                    )
+                }
                 item(key = "trim") {
                     AnimatedVisibility(
                         visible = state.lastTrim != null,
                         enter = expandVertically() + fadeIn(),
                         exit = shrinkVertically() + fadeOut(),
                     ) {
-                        state.lastTrim?.let { TrimResultBanner(result = it, onDismiss = onDismissTrim) }
+                        state.lastTrim?.let { TrimResultBanner(result = it, onDismiss = onDismissTrim, modifier = Modifier.padding(top = GAP)) }
                     }
                 }
 
                 item(key = "apps-header") {
                     SectionHeader(
-                        title = "Recently active apps",
-                        trailing = if (state.usageAccessGranted && state.appsLoaded) "${state.apps.size} in the last 24 h" else null,
+                        title = "Apps",
+                        trailing = if (state.usageAccessGranted && state.appsLoaded) "${state.apps.size} apps · ${formatBytes(state.totalAppStorageBytes)} on device" else null,
+                        modifier = Modifier.padding(top = GAP),
                     )
+                }
+                if (state.usageAccessGranted && state.appsLoaded && state.apps.isNotEmpty()) {
+                    item(key = "apps-sort") { SortChips(selected = state.sort, onSelect = onSort, modifier = Modifier.padding(top = 4.dp, bottom = GAP)) }
                 }
 
                 when {
-                    !state.appsLoaded -> item(key = "apps-loading") { EmptyRows() }
-                    !state.usageAccessGranted -> item(key = "apps-permission") { UsageAccessCard(onGrant = onGrantUsageAccess) }
+                    !state.appsLoaded -> item(key = "apps-loading") { EmptyRows(Modifier.padding(top = GAP)) }
+                    !state.usageAccessGranted -> item(key = "apps-permission") {
+                        SuggestionCard(
+                            modifier = Modifier.padding(top = GAP),
+                            icon = Icons.Rounded.Apps,
+                            eyebrow = "One-time permission",
+                            title = "See how much each app takes",
+                            body = "Usage access lets MemWatch read each app's measured storage (app, data, cache) and when it last ran. It's read on your phone only — nothing leaves the device.",
+                            actionLabel = "Allow usage access",
+                            onAction = onGrantUsageAccess,
+                            emphasized = true,
+                        )
+                    }
                     state.apps.isEmpty() -> item(key = "apps-empty") {
                         InfoCard(
-                            title = "No app activity yet",
-                            body = "Android starts recording activity once usage access is on. Use your phone normally and pull down to refresh.",
+                            modifier = Modifier.padding(top = GAP),
+                            title = "Nothing to show yet",
+                            body = "No user apps were found. Install or open a few apps, then pull down to refresh.",
                             actionLabel = null,
                             onAction = null,
                         )
                     }
-                    else -> itemsIndexed(state.apps, key = { _, app -> app.packageName }) { index, app ->
+                    else -> itemsIndexed(apps, key = { _, app -> app.packageName }) { index, app ->
                         Column {
-                            AppRow(app = app, now = now, onClick = { onSelect(app.packageName) })
-                            if (index < state.apps.lastIndex) RowDivider()
+                            AppRow(
+                                app = app,
+                                now = now,
+                                largestBytes = state.largestStorageBytes,
+                                shape = groupShape(index, apps.lastIndex),
+                                onClick = { onSelect(app.packageName) },
+                            )
+                            if (index < apps.lastIndex) RowDivider()
                         }
                     }
-                }
-
-                item(key = "footer") {
-                    Spacer(Modifier.height(8.dp))
-                    InfoCard(
-                        title = "Per-app memory is hidden from apps",
-                        body = if (state.canTrimOtherApps) {
-                            "Since Android 8, only the system can see how much RAM each app holds. Developer options shows it under Running services."
-                        } else {
-                            "Since Android 8, only the system can see how much RAM each app holds, and Android 14 stopped apps from trimming each other. Developer options shows the real per-app numbers under Running services."
-                        },
-                        actionLabel = "Open Developer options",
-                        onAction = onOpenDeveloperOptions,
-                    )
                 }
             }
         }
@@ -188,6 +211,21 @@ fun MemWatchScreen(
             onForceStop = { onForceStop(app.packageName) },
             onTrim = { onTrim(listOf(app.packageName)) },
         )
+    }
+}
+
+private val GAP = 12.dp
+
+/** Rows share one visual container: only the first and last rows get outer corners. */
+@Composable
+private fun groupShape(index: Int, lastIndex: Int): RoundedCornerShape {
+    val radius = 20.dp
+    val zero = 0.dp
+    return when {
+        lastIndex == 0 -> RoundedCornerShape(radius)
+        index == 0 -> RoundedCornerShape(topStart = radius, topEnd = radius, bottomStart = zero, bottomEnd = zero)
+        index == lastIndex -> RoundedCornerShape(topStart = zero, topEnd = zero, bottomStart = radius, bottomEnd = radius)
+        else -> RoundedCornerShape(zero)
     }
 }
 

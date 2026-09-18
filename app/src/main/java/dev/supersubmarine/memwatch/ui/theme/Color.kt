@@ -4,17 +4,18 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// Primitives
-internal val Gray50 = Color(0xFFF7F7F8)
-internal val Gray100 = Color(0xFFEFEFF1)
-internal val Gray200 = Color(0xFFE2E2E6)
-internal val Gray400 = Color(0xFF9A9AA3)
-internal val Gray500 = Color(0xFF6E6E78)
-internal val Gray700 = Color(0xFF3A3A42)
-internal val Gray800 = Color(0xFF26262C)
-internal val Gray850 = Color(0xFF1C1C21)
-internal val Gray900 = Color(0xFF141417)
-internal val Gray950 = Color(0xFF0E0E10)
+// Primitives: cool grays. Light mode layers white cards on a tinted canvas; dark mode layers
+// progressively lighter surfaces on a near-black canvas (never pure black).
+internal val Gray50 = Color(0xFFF2F3F8)
+internal val Gray100 = Color(0xFFE9EAF1)
+internal val Gray200 = Color(0xFFDCDEE6)
+internal val Gray400 = Color(0xFF8F9099)
+internal val Gray500 = Color(0xFF666773)
+internal val Gray700 = Color(0xFF3B3C45)
+internal val Gray800 = Color(0xFF2B2C33)
+internal val Gray850 = Color(0xFF1F2026)
+internal val Gray900 = Color(0xFF17181D)
+internal val Gray950 = Color(0xFF101114)
 
 internal val Accent = Color(0xFF3B82F6)
 internal val AccentDark = Color(0xFF60A5FA)
@@ -34,9 +35,17 @@ data class SemanticColors(
     val warn: Color,
     val critical: Color,
     val trackSubtle: Color,
+    /** Fill for the primary capacity bar when memory is healthy — ink, not brand colour. */
+    val ink: Color,
+    /** Reclaimable cache segment of the capacity bar. */
+    val cache: Color,
 )
 
-internal val LightSemantic = SemanticColors(ok = GreenLight, warn = AmberLight, critical = RedLight, trackSubtle = Gray200)
-internal val DarkSemantic = SemanticColors(ok = GreenDark, warn = AmberDark, critical = RedDark, trackSubtle = Gray700)
+internal val LightSemantic = SemanticColors(
+    ok = GreenLight, warn = AmberLight, critical = RedLight, trackSubtle = Gray100, ink = Gray900, cache = Gray400,
+)
+internal val DarkSemantic = SemanticColors(
+    ok = GreenDark, warn = AmberDark, critical = RedDark, trackSubtle = Gray700, ink = Gray50, cache = Gray500,
+)
 
 val LocalSemanticColors = staticCompositionLocalOf { DarkSemantic }

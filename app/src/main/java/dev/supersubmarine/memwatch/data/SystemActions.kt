@@ -30,6 +30,15 @@ class SystemActions(private val context: Context, private val memoryRepository: 
 
     fun openDeveloperOptions(): Boolean = launch(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
 
+    /**
+     * Android's own "Memory used by apps" screen (per-app RAM averaged by the system). The action
+     * is declared by AOSP Settings but has no SDK constant; fall back to Developer options.
+     */
+    fun openAppMemoryUsage(): Boolean = launch(Intent(ACTION_APP_MEMORY_USAGE)) || openDeveloperOptions()
+
+    fun canOpenAppMemoryUsage(): Boolean =
+        Intent(ACTION_APP_MEMORY_USAGE).resolveActivity(context.packageManager) != null
+
     fun trimBackground(packages: List<String>): TrimResult {
         val before = memoryRepository.snapshot().availableBytes
         var trimmed = 0
@@ -51,5 +60,9 @@ class SystemActions(private val context: Context, private val memoryRepository: 
         false
     } catch (_: SecurityException) {
         false
+    }
+
+    private companion object {
+        const val ACTION_APP_MEMORY_USAGE = "android.settings.APP_MEMORY_USAGE"
     }
 }

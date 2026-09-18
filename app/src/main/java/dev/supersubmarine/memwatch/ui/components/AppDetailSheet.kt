@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.supersubmarine.memwatch.data.AppUsage
+import dev.supersubmarine.memwatch.ui.formatBytes
 import dev.supersubmarine.memwatch.ui.formatDuration
 import dev.supersubmarine.memwatch.ui.formatRelativeTime
 import dev.supersubmarine.memwatch.ui.theme.MemWatchTheme
@@ -78,6 +79,31 @@ fun AppDetailSheet(
             }
 
             Spacer(Modifier.height(20.dp))
+            app.storage?.let { storage ->
+                Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text("Storage", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.weight(1f))
+                            Text(formatBytes(storage.totalBytes), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                        val total = storage.totalBytes.coerceAtLeast(1).toFloat()
+                        SegmentedBar(
+                            segments = listOf(
+                                BarSegment(storage.appBytes / total, semantic.ink),
+                                BarSegment(storage.dataBytes / total, MaterialTheme.colorScheme.primary),
+                                BarSegment(storage.cacheBytes / total, semantic.cache),
+                            ),
+                            track = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier.fillMaxWidth().height(10.dp),
+                        )
+                        LegendDot(semantic.ink, "App", formatBytes(storage.appBytes))
+                        LegendDot(MaterialTheme.colorScheme.primary, "User data", formatBytes(storage.dataBytes))
+                        LegendDot(semantic.cache, "Cache", formatBytes(storage.cacheBytes))
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
             Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     DetailRow("Last opened", formatRelativeTime(app.lastTimeUsedMillis, now))
@@ -95,7 +121,7 @@ fun AppDetailSheet(
                 text = if (app.isSystemApp) {
                     "This is part of the system. Force stopping it can break phone features until it restarts on its own."
                 } else {
-                    "Force stop ends every process and background service of this app until you open it again. Android only allows that from its own Settings screen — tap Force stop there."
+                    "Force stop ends every process and background service of this app until you open it again; Clear cache frees the cache above. Android only allows both from its own App info screen."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (app.isSystemApp) semantic.warn else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -103,7 +129,7 @@ fun AppDetailSheet(
 
             Spacer(Modifier.height(16.dp))
             Button(onClick = onForceStop, modifier = Modifier.fillMaxWidth()) {
-                Text("Open app info to force stop")
+                Text("Open App info")
                 Spacer(Modifier.width(8.dp))
                 Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
             }

@@ -1,22 +1,19 @@
 package dev.supersubmarine.memwatch.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -24,132 +21,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.ExpandMore
-import dev.supersubmarine.memwatch.data.MemorySnapshot
+import dev.supersubmarine.memwatch.data.AppSort
 import dev.supersubmarine.memwatch.data.TrimResult
 import dev.supersubmarine.memwatch.ui.formatBytes
 import dev.supersubmarine.memwatch.ui.theme.MemWatchTheme
-
-@Composable
-fun StatTiles(memory: MemorySnapshot?, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatTile(label = "Available", value = memory?.let { formatBytes(it.availableBytes) })
-        StatTile(label = "Cached", value = memory?.let { formatBytes(it.cachedBytes) })
-        StatTile(
-            label = "Swap",
-            value = memory?.let { if (it.swapTotalBytes == 0L) "None" else formatBytes(it.swapUsedBytes) },
-        )
-    }
-}
-
-@Composable
-private fun RowScope.StatTile(label: String, value: String?) {
-    Surface(
-        modifier = Modifier.weight(1f),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-    ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Text(
-                text = value ?: "—",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-            )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-fun ExplainerCard(modifier: Modifier = Modifier) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    val chevron by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { expanded = !expanded }
-            .animateContentSize(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-    ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "Why is RAM in use when nothing is open?",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    imageVector = Icons.Rounded.ExpandMore,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.rotate(chevron),
-                )
-            }
-            AnimatedVisibility(expanded) {
-                Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Body("The kernel, system services and your launcher need roughly 1–2 GB before any app opens. That part never goes away.")
-                    Body("Everything above that is mostly recently used apps kept warm so they reopen instantly. Android drops them automatically the moment something else needs the space — free RAM that sits idle is wasted RAM.")
-                    Body("Cached is file data the kernel can reclaim instantly. Swap is compressed memory (zRAM); if it keeps growing, memory is genuinely tight.")
-                    Body("Worry only when the badge above turns amber or red, or when apps keep restarting from scratch.")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun Body(text: String) {
-    Text(text = text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-}
-
-@Composable
-fun UsageAccessCard(onGrant: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.primaryContainer,
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(
-                text = "See which apps have been active",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "Android hides app activity until you allow usage access. MemWatch reads it on your phone only — nothing leaves the device.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Spacer(Modifier.height(12.dp))
-            Button(onClick = onGrant) {
-                Text("Allow usage access")
-                Spacer(Modifier.width(8.dp))
-                Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
-            }
-        }
-    }
-}
 
 @Composable
 fun InfoCard(
@@ -161,16 +44,16 @@ fun InfoCard(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(20.dp)) {
             Text(text = title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.height(4.dp))
             Text(text = body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (actionLabel != null && onAction != null) {
                 Spacer(Modifier.height(4.dp))
-                TextButton(onClick = onAction, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 0.dp)) {
+                TextButton(onClick = onAction, contentPadding = PaddingValues(horizontal = 0.dp)) {
                     Text(actionLabel)
                     Spacer(Modifier.width(6.dp))
                     Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -186,10 +69,10 @@ fun TrimResultBanner(result: TrimResult, onDismiss: () -> Unit, modifier: Modifi
     val freed = result.freedBytes > 0
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Row(Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp), verticalAlignment = Alignment.Top) {
+        Row(Modifier.padding(start = 20.dp, top = 16.dp, bottom = 16.dp, end = 8.dp), verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
                 Text(
                     text = if (freed) "Freed ${formatBytes(result.freedBytes)}" else "Nothing to free",
@@ -216,7 +99,7 @@ fun TrimResultBanner(result: TrimResult, onDismiss: () -> Unit, modifier: Modifi
 
 @Composable
 fun SectionHeader(title: String, trailing: String?, modifier: Modifier = Modifier) {
-    Row(modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.Bottom) {
+    Row(modifier.fillMaxWidth().padding(top = 16.dp, start = 4.dp, end = 4.dp), verticalAlignment = Alignment.Bottom) {
         Text(text = title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.weight(1f))
         if (trailing != null) {
@@ -226,16 +109,39 @@ fun SectionHeader(title: String, trailing: String?, modifier: Modifier = Modifie
 }
 
 @Composable
+fun SortChips(selected: AppSort, onSelect: (AppSort) -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier.padding(start = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        AppSort.entries.forEach { sort ->
+            FilterChip(
+                selected = sort == selected,
+                onClick = { onSelect(sort) },
+                label = { Text(if (sort == AppSort.STORAGE) "Largest first" else "Recently used") },
+                shape = MaterialTheme.shapes.small,
+                border = null,
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    selectedContainerColor = MaterialTheme.colorScheme.onSurface,
+                    selectedLabelColor = MaterialTheme.colorScheme.surface,
+                ),
+            )
+        }
+    }
+}
+
+@Composable
 fun EmptyRows(modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        repeat(4) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(40.dp).background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.small))
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Box(Modifier.width(140.dp).height(14.dp).background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.extraSmall))
-                    Spacer(Modifier.height(8.dp))
-                    Box(Modifier.width(200.dp).height(10.dp).background(MaterialTheme.colorScheme.surfaceContainer, MaterialTheme.shapes.extraSmall))
+    Surface(modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainer) {
+        Column {
+            repeat(4) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(40.dp).background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.small))
+                    Spacer(Modifier.width(16.dp))
+                    Column(Modifier.weight(1f)) {
+                        Box(Modifier.width(140.dp).height(14.dp).background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.extraSmall))
+                        Spacer(Modifier.height(8.dp))
+                        Box(Modifier.fillMaxWidth().height(4.dp).background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.extraSmall))
+                    }
                 }
             }
         }
@@ -243,7 +149,7 @@ fun EmptyRows(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun IconLabel(icon: ImageVector, text: String, tint: androidx.compose.ui.graphics.Color) {
+fun IconLabel(icon: ImageVector, text: String, tint: Color) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(14.dp))
         Text(text = text, style = MaterialTheme.typography.labelMedium, color = tint, maxLines = 1)

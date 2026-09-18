@@ -2,6 +2,7 @@ package dev.supersubmarine.memwatch.data
 
 import android.app.ActivityManager
 import android.content.Context
+import android.os.Debug
 import java.io.File
 
 class MemoryRepository(context: Context) {
@@ -12,6 +13,7 @@ class MemoryRepository(context: Context) {
         val meminfo = readProcMeminfo()
         val swapTotal = meminfo["SwapTotal"] ?: 0L
         val swapFree = meminfo["SwapFree"] ?: 0L
+        val self = Debug.MemoryInfo().also(Debug::getMemoryInfo)
         return MemorySnapshot(
             totalBytes = info.totalMem,
             availableBytes = info.availMem,
@@ -20,6 +22,7 @@ class MemoryRepository(context: Context) {
             cachedBytes = (meminfo["Cached"] ?: 0L) + (meminfo["Buffers"] ?: 0L),
             swapTotalBytes = swapTotal,
             swapUsedBytes = (swapTotal - swapFree).coerceAtLeast(0),
+            selfPssBytes = self.totalPss * 1024L,
             capturedAtMillis = System.currentTimeMillis(),
         )
     }

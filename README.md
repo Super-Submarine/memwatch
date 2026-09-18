@@ -6,23 +6,35 @@ and gets you to Android's own **Force stop** button in one tap.
 ## What it shows
 
 - **Real RAM numbers** from `ActivityManager.getMemoryInfo()` and `/proc/meminfo`:
-  in use, available, cached and swap (zRAM), plus a Healthy / Tight / Critical badge
-  based on the kernel's own low-memory threshold.
-- **Recently active apps** (last 24 h) from `UsageStatsManager`: when each app was
-  last opened, time on screen, and whether it ran a background service. Needs
-  *Usage access*, which the app requests with a deep link into Settings.
-- **Per-app sheet** with a one-tap jump to Android's App info page, where Force stop
-  lives. System apps are flagged before you stop them.
+  a stacked bar of in use / reclaimable cache / free, available, swap (zRAM) and the
+  kernel's low-memory threshold, plus a Healthy / Getting tight / Low memory badge.
+  MemWatch's own footprint is listed separately as "MemWatch itself (PSS)".
+- **Per-app RAM, via Android.** Since Android 8 (and stricter on 10+) an ordinary app
+  cannot read other apps' RAM, so MemWatch does not pretend to. Instead a primary
+  button opens Android's own *Memory used by apps* screen
+  (`android.settings.APP_MEMORY_USAGE`, averaged over 3 h–1 day), falling back to
+  Developer options when the OEM has removed that screen.
+- **Apps ranked by measured storage** from `StorageStatsManager`: app, user data and
+  cache bytes for every user-facing or recently used app, with a relative bar. This is
+  storage, and it is labelled as storage — not RAM.
+- **Activity** (last 24 h) from `UsageStatsManager`: last opened, time on screen,
+  and whether a background service ran. Sort by *Largest first* or *Recently used*.
+  Needs *Usage access*, which the app requests with a deep link into Settings.
+- **Per-app sheet** with the storage breakdown, activity, and a one-tap jump to
+  Android's App info page, where Force stop and Clear cache live. System apps are
+  flagged before you stop them.
 - **Free up memory** button on Android 8–13 (`killBackgroundProcesses`), with the
   measured amount freed. On Android 14+ that API only affects the calling app, so
-  the button is replaced by an explanation and a link to Developer options →
-  Running services, which is the only place per-app RAM is still visible.
+  the button is replaced by an explanation.
 
 ## What it deliberately does not do
 
 Since Android 8, third-party apps cannot see other apps' memory or kill their
 processes without root. MemWatch does not fake either. Anything claiming otherwise
 on a stock phone is either using an accessibility hack or just showing cached numbers.
+Three different numbers are kept visibly apart: **RAM** (device-wide, and per app only
+inside Android Settings), **storage** (per app, measured), and **activity** (per app,
+from usage stats).
 
 ## Build
 
